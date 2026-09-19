@@ -1,0 +1,36 @@
+# rclone filter rules for drive-backup.
+# A line starting with '-' excludes a path; everything else is kept.
+# Reference: https://rclone.org/filtering/
+
+# --- OS / editor cruft ---
+- desktop.ini
+- Thumbs.db
+- .DS_Store
+
+# --- dependencies and build output (regenerable, never worth uploading) ---
+- node_modules/**
+- vendor/**
+- .venv/**
+- venv/**
+- env/**
+- __pycache__/**
+- *.pyc
+- dist/**
+- build/**
+- out/**
+- .next/**
+- .turbo/**
+- .parcel-cache/**
+- coverage/**
+- target/**
+- bin/**
+- obj/**
+- .gradle/**
+- .terraform/**
+
+# --- logs ---
+- *.log
+
+# --- your own heavy folders go here, one per line, e.g. ---
+# - Insta360/**
+# - Screenshots/**
