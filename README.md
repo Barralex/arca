@@ -1,6 +1,6 @@
 <div align="center">
 
-# drive-backup
+# rclone-backup-windows
 
 [![PowerShell](https://img.shields.io/badge/PowerShell-5.1+-5391FE?style=flat-square&logo=powershell&logoColor=white)](https://learn.microsoft.com/powershell/)
 [![rclone](https://img.shields.io/badge/rclone-backend--agnostic-3B5?style=flat-square)](https://rclone.org/)
@@ -23,7 +23,7 @@ Consumer sync clients back up *everything*. Point one at a folder of code projec
 and it happily uploads every `node_modules`, filling a free plan with files that can
 be regenerated in seconds. There is no "sync this, but not that" switch.
 
-`drive-backup` is that switch. One filter file decides what never leaves the machine;
+`rclone-backup-windows` is that switch. One filter file decides what never leaves the machine;
 everything else is a clean, scheduled mirror to the cloud.
 
 ## What it does
@@ -55,7 +55,7 @@ everything else is a clean, scheduled mirror to the cloud.
 Schedule it (daily, 21:00):
 
 ```powershell
-schtasks /Create /TN "drive-backup" /SC DAILY /ST 21:00 /F ^
+schtasks /Create /TN "rclone-backup-windows" /SC DAILY /ST 21:00 /F ^
   /TR "powershell -NoProfile -ExecutionPolicy Bypass -File \"%CD%\backup.ps1\""
 ```
 

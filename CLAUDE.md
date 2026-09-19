@@ -13,7 +13,7 @@ Working guide for this repository. Read it before making any change.
 
 ## 1. Project
 
-**drive-backup** — a small Windows tool that mirrors chosen local folders to a
+**rclone-backup-windows** — a small Windows tool that mirrors chosen local folders to a
 cloud remote on a schedule, skipping the noise, and never silently loses a file.
 
 It exists because the consumer sync clients (OneDrive, Google Drive for Desktop)
@@ -101,7 +101,7 @@ of the script, so tuning what gets skipped never means touching code.
 The tool is meant to run from **Windows Task Scheduler**, daily. Register it once:
 
 ```powershell
-schtasks /Create /TN "drive-backup" /SC DAILY /ST 21:00 /F ^
+schtasks /Create /TN "rclone-backup-windows" /SC DAILY /ST 21:00 /F ^
   /TR "powershell -NoProfile -ExecutionPolicy Bypass -File \"%CD%\backup.ps1\""
 ```
 
