@@ -1,0 +1,377 @@
+Screen {
+    background: $background;
+}
+
+/* Every block below the masthead shares the same 2-column side margin. */
+
+.status {
+    height: auto;
+    margin: 1 2 0 2;
+    padding: 0 1;
+}
+
+#summary {
+    height: 1;
+    margin: 1 2 0 2;
+    padding: 0 1;
+}
+
+#empty-text {
+    height: auto;
+    margin: 1 0;
+}
+
+#jobs {
+    height: auto;
+    max-height: 14;
+    margin: 1 2 0 2;
+}
+
+#row-note {
+    height: auto;
+    margin: 1 2 0 2;
+    padding: 0 1;
+}
+
+#add-folders {
+    margin: 1 2 0 2;
+}
+
+/* One folder's screen: its panel grows, so the files take the height. */
+FolderScreen .panel {
+    height: 1fr;
+    max-height: 100%;
+}
+
+#folder-head {
+    height: auto;
+    padding: 1 0 0 0;
+}
+
+#folder-actions {
+    margin-top: 1;
+}
+
+/* One cursor on screen: while the keys are in the files, the actions show none. */
+#folder-actions:blur > .option-list--option-highlighted {
+    background: transparent;
+    text-style: none;
+}
+
+/* The folder's files: a note (loading, how many are copied), the ticked tree, the save line. */
+#files-note {
+    height: auto;
+    margin-top: 1;
+}
+
+#files-holder {
+    height: 1fr;
+    margin-top: 1;
+}
+
+#files-holder FileTree {
+    height: 1fr;
+    background: transparent;
+    padding: 0;
+}
+
+#files-save {
+    margin: 1 0;
+}
+
+/* home menu and pages: one panel with Bitácora's rounded cyan border */
+
+.panel {
+    height: auto;
+    max-height: 1fr;
+    margin: 1 2 0 2;
+    padding: 0 1;
+    border: round #4fd1e8 50%;
+    border-title-color: #4fd1e8;
+    border-title-style: bold;
+}
+
+.panel:focus-within {
+    border: round #4fd1e8;
+}
+
+.panel OptionList {
+    height: auto;
+    max-height: 1fr;
+    border: none;
+    padding: 0;
+    background: transparent;
+}
+
+.panel OptionList:focus {
+    border: none;
+}
+
+/* One quiet highlight everywhere: a teal wash that keeps each column's own colour readable. */
+
+OptionList > .option-list--option-highlighted,
+OptionList:focus > .option-list--option-highlighted {
+    background: #4fd1e8 22%;
+    color: $text;
+    text-style: bold;
+}
+
+OptionList > .option-list--option-hover {
+    background: #4fd1e8 10%;
+}
+
+DataTable > .datatable--cursor {
+    background: #4fd1e8 22%;
+    color: $text;
+    text-style: bold;
+}
+
+DataTable:blur > .datatable--cursor {
+    background: #4fd1e8 10%;
+}
+
+/* settings under the home menu: outside the border, like Bitácora's */
+
+/* Home: the one thing to do first (connect an account), apart from the quiet status and above the menu. */
+#callout {
+    height: auto;
+    margin: 1 2 0 2;
+    padding: 1 2;
+    border: round #e0af68;
+}
+
+#settings {
+    height: auto;
+    margin: 1 2 0 2;
+    padding: 0 1;
+}
+
+#settings .settings-title {
+    color: $text-muted;
+    margin-bottom: 1;
+    padding: 0 1;
+}
+
+Choice:focus {
+    background: #4fd1e8 22%;
+}
+
+#settings-note {
+    height: auto;
+    padding: 0 1;
+}
+
+#reset {
+    margin-top: 1;
+}
+
+#account-links {
+    height: auto;
+    margin: 1 2 0 2;
+    padding: 0 1;
+}
+
+/* The accounts line up with the text above them and keep their icon off the border. */
+.panel #accounts {
+    padding: 0 1;
+}
+
+#accounts-note {
+    height: auto;
+    margin-top: 1;
+}
+
+#services {
+    height: auto;
+    margin-left: 2;
+    border: none;
+    padding: 0;
+    background: transparent;
+}
+
+LinkRow:focus {
+    background: #4fd1e8 15%;
+}
+
+#reset:focus {
+    background: #f7768e 18%;
+}
+
+#dialog.confirm Label {
+    width: 100%;
+}
+
+#dialog.confirm .question {
+    text-style: bold;
+    color: $text;
+}
+
+#dialog.confirm .detail {
+    color: $text-muted;
+    margin-top: 1;
+}
+
+#dialog.confirm #answers {
+    height: auto;
+    margin-top: 1;
+    border: none;
+    padding: 0;
+    background: transparent;
+}
+
+#dialog.confirm .hint {
+    margin-top: 1;
+}
+
+/* import: where to search, editable */
+
+.field {
+    height: 1;
+    padding: 0 1;
+}
+
+#field-script {
+    margin-top: 1;
+}
+
+#field-from {
+    margin-top: 1;
+}
+
+.field-label {
+    width: 18;
+    color: $text-muted;
+}
+
+.field Input {
+    width: 1fr;
+    height: 1;
+    border: none;
+    padding: 0 1;
+    background: #4fd1e8 8%;
+}
+
+.field Input:focus {
+    border: none;
+    background: #4fd1e8 18%;
+}
+
+#import-info, #accounts-info {
+    height: auto;
+    padding: 1 1;
+}
+
+#metrics-scroll {
+    height: auto;
+    max-height: 1fr;
+    padding: 1 1;
+}
+
+.hint-line {
+    height: auto;  /* a narrow terminal wraps the keys onto a second line instead of cutting them */
+    margin: 1 2 0 2;
+    padding: 0 2;
+    color: $text-muted;
+}
+
+/* dialogs */
+
+ModalScreen {
+    align: center middle;
+    background: $background 70%;
+}
+
+#dialog {
+    width: 96;
+    max-width: 95%;
+    height: auto;
+    max-height: 95%;
+    padding: 1 2;
+    border: round #4fd1e8;
+    background: $surface;
+}
+
+#dialog.pick #tree {
+    height: 18;
+    margin: 1 0;
+}
+
+#dialog.pick #picked {
+    height: auto;
+    min-height: 1;
+}
+
+#dialog.pick #pick-save {
+    margin-top: 1;
+}
+
+#dialog.pick .hint {
+    margin-top: 1;
+}
+
+/* The tree's cursor in the same teal wash as every list, never the theme's purple block. */
+DirectoryTree > .tree--cursor,
+DirectoryTree:focus > .tree--cursor {
+    background: #4fd1e8 30%;
+    color: $text;
+    text-style: bold;
+}
+
+#dialog.confirm {
+    width: 70;
+}
+
+#dialog .title {
+    text-style: bold;
+    color: #4fd1e8;
+    margin-bottom: 1;
+}
+
+#dialog.actions {
+    width: 50;
+}
+
+#dialog.actions OptionList {
+    height: auto;
+    border: none;
+    padding: 0;
+    margin-bottom: 1;
+    background: transparent;
+}
+
+#dialog.help {
+    width: 60;
+}
+
+#dialog .hint {
+    width: 100%;
+    color: $text-muted;
+}
+
+#dialog .error {
+    color: $error;
+    text-style: bold;
+}
+
+#tree {
+    height: 16;
+    margin: 1 0;
+}
+
+#remotes {
+    height: auto;
+    max-height: 8;
+    margin: 1 0;
+}
+
+.buttons {
+    height: auto;
+    align-horizontal: right;
+    margin-top: 1;
+}
+
+.buttons Button {
+    margin-left: 1;
+}
+
+
