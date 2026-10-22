@@ -2,9 +2,22 @@
 backup.log
 *.log
 
+# the old PowerShell script: a personal setup, never published
+*.ps1
+
 # OS / editor
 .DS_Store
 Thumbs.db
 desktop.ini
 .vscode/
 .idea/
+
+# Python
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+.ruff_cache/
+
+# Claude Code: the keyboard-first hook keeps its last check here
+.claude/keyboard-check.state
