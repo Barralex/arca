@@ -87,7 +87,8 @@ account for good, and backends that need more than a browser sign-in (B2/S3 keys
 a local disk as a named remote).
 
 When a phase ships: mark it done here, update §3-§7 to match, retire what it
-replaces.
+replaces. The README's **Roadmap** is this table in plain words, with a badge per
+stage (`done`, `work in progress`, `planned`): change both together.
 
 Out of scope: **Gmail** is not an rclone backend (rclone does Drive and Photos,
 not mail). Mail backup would need another tool and is not planned.
@@ -129,6 +130,13 @@ arca/
   cli.py       `arca` (interface), `arca run [--dry-run] [--job NAME] [--headless]`.
   default_filter.txt  Exclude policy copied to the settings folder on first use.
 tests/         pytest; core, the real rclone safety net, and the app via Pilot.
+design/
+  banner/build.py    Writes assets/brand/banner.png and og-cover.png from masthead.Scene;
+                     holds the Chrome runner (shoot) the preview uses.
+  preview/build.py   Writes assets/brand/preview.png: the app run with demo data, two screens.
+  preview/preview.html  How the two windows are laid out for that shot.
+assets/brand/  README only: banner.png, preview.png, og-cover.png (GitHub's social
+               preview, uploaded by hand), signature.svg (footer credit, by hand).
 ```
 
 Key labels are translated, so bindings are registered at runtime with
@@ -434,6 +442,13 @@ the machine's Task Scheduler.
 - [ ] A dry run against the real remote runs clean (`arca run --dry-run`).
 - [ ] Interface changes checked by eye: `App.save_screenshot()` from a
       `run_test()` session, rendered to PNG.
+- [ ] **README images match the app.** If the home menu or the folders list
+      changed visibly, run `uv run python design/preview/build.py` for
+      `assets/brand/preview.png` (1860×1050, demo data only). If the masthead
+      changed, run `uv run python design/banner/build.py` for the banner and
+      `og-cover.png`, and upload the new `og-cover.png` as the repository's social
+      preview. The preview needs Chrome or Edge (`CHROME` overrides the path); the
+      banner needs nothing beyond Python.
 - [ ] Keyboard first, proven: a Pilot test drives the change with `pilot.press()`
       only, and Enter while exploring never saves, adds, runs or deletes. The
       project's Stop hook (`.claude/hooks/keyboard_check.py`, set in

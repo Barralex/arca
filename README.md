@@ -1,126 +1,77 @@
 <div align="center">
 
-# Arca
+<img src="assets/brand/banner.png" width="100%" alt="Arca">
+<br><br>
 
-[![Python](https://img.shields.io/badge/Python-3.11+-3776AB?style=flat-square&logo=python&logoColor=white)](https://www.python.org/)
-[![Textual](https://img.shields.io/badge/TUI-Textual-5A4FCF?style=flat-square)](https://textual.textualize.io/)
-[![rclone](https://img.shields.io/badge/rclone-backend--agnostic-3B5?style=flat-square)](https://rclone.org/)
-[![Platform](https://img.shields.io/badge/platform-Windows-0078D6?style=flat-square&logo=windows&logoColor=white)](#requirements)
+[![Status](https://img.shields.io/badge/status-work%20in%20progress-E0AF68?style=flat-square)](#roadmap)
+[![Python](https://img.shields.io/badge/Python-3.11+-14305A?style=flat-square&logo=python&logoColor=white)](https://www.python.org/)
+[![Textual](https://img.shields.io/badge/TUI-Textual-2A6F9E?style=flat-square)](https://textual.textualize.io/)
+[![rclone](https://img.shields.io/badge/under%20the%20hood-rclone-4FD1E8?style=flat-square)](https://rclone.org/)
+[![Platform](https://img.shields.io/badge/platform-Windows-07152B?style=flat-square&logo=windows&logoColor=white)](#requirements)
 [![License](https://img.shields.io/badge/license-MIT-4A4E6D?style=flat-square)](LICENSE)
 
-### Back up the folders that matter, skip the junk, lose nothing.
+### Your data, where you decide, the way you decide.
 
-A terminal interface for `rclone`: pick folders, watch the backup live, and when
-something breaks, read what happened and how to fix it.
+A terminal interface for `rclone` on Windows.<br>
+Choose what gets backed up, see what it weighs before it uploads, and never lose a file.
 
 </div>
 
 ---
 
-## Why
+<img src="assets/brand/preview.png" width="100%" alt="Arca: the home menu, and a folder whose drive is unplugged, with the cause and the fix under it">
 
-Consumer sync clients back up *everything*. Point one at a folder of code projects
-and it happily uploads every `node_modules`, filling a free plan with files that can
-be regenerated in seconds. There is no "sync this, but not that" switch.
+---
 
-`rclone` has that switch and talks to every provider, but it is a command line with
-no memory and errors buried in a log. Arca is the interface on top.
+## The brief
 
-## What it does
+Google Drive for desktop and OneDrive back up everything they are pointed at. A folder of code projects goes up with every `node_modules`, the free plan fills with files that can be rebuilt in seconds, and there is no switch for "this, but not that". You do not choose what goes, where it lands, or what happens when something is deleted on your computer: it is deleted in the cloud too.
 
-- **A menu, not a manual.** It opens on a home menu: arrows move, Enter opens,
-  Esc goes back. Enter on a folder opens its own screen: back up, dry run, pause,
-  and its files.
-- **Choose folders, don't type paths.** Press `a`, explore with the arrows and
-  Enter (they only open and close folders), tick every folder you want with space
-  or Tab, then add them all from the line under the tree (or `Ctrl+S`). Each folder
-  becomes its own sub-folder on the destination.
-- **Brings your old setup along.** Import reads an earlier PowerShell backup script and the
-  folders already on the destination (or wherever you paste), matches them to local folders (`Fotos` is
-  `Pictures`), and keeps their names so the next run continues instead of
-  uploading everything again.
-- **Accounts in one place.** Every rclone account on one line with its state and
-  an icon: `✕` disconnects, `↻` connects. Adding Google Drive, OneDrive, Dropbox
-  or Google Photos is a sign-in in the browser: no `rclone config`, no console.
-- **Shows how it's going.** Metrics: space on the destination, success rate per
-  folder, last good copy, last error, the last 14 days at a glance.
-- **Shows the run live.** Progress and speed per folder; a failed run says why
-  and how to fix it.
-- **You pick the files.** Each folder lists every file in it, the ones the filters
-  leave out too, with a box per line: tick what gets copied, untick what stays,
-  and the total (files and size, against the whole folder) follows every tick.
-  Each folder shows its size, so the big ones stand out. Save, and each folder keeps
-  its own choices.
-- **Never fails silently.** The destination is checked before anything runs. An
-  expired Google login, a missing remote, a full drive or a moved folder each get a
-  plain cause and the fix; `x` reconnects an expired login in place.
-- **Never loses a file.** Every backup is an `rclone sync` with `--backup-dir`: the
-  destination mirrors the folder, but anything overwritten or deleted is archived to
-  `_versions/<timestamp>/` first.
-- **Filters like a `.gitignore`.** Dependencies, build output and OS cruft stay
-  local. Press `f` to edit the list.
-- **Runs itself.** Pick automatic backups under the menu: when you sign in to
-  Windows, or every day at 21:00 (a missed day runs when the computer is on).
-  No window opens; the interface shows what happened the next time it opens.
-- **Any backend.** Google Drive, OneDrive, Backblaze B2 or an external disk.
-- **English and Spanish, and themes.** Settings sit under the menu and change
-  with the arrows: language, theme, automatic backups.
+Arca hands that control back. You pick the folders, and inside each one the files: every tick shows how much the backup will hold against what the folder weighs, and the Metrics page shows the space left on the account, so a backup never runs into the plan's limit by surprise. Everything lands as plain folders in your own account (`Backups/Documents`), readable without Arca, and anything overwritten or deleted is set aside in `_versions/` first. When something breaks, an expired login, a full drive, an unplugged disk, Arca says what happened and how to fix it, on screen, never only in a log.
+
+## Under the hood
+
+Arca does not move a single byte itself. [rclone](https://rclone.org/) does: it speaks to Google Drive, OneDrive, Dropbox, Backblaze and seventy other storage services, and has no interface, no memory and no overview. Arca is that missing layer, in Python with [Textual](https://textual.textualize.io/).
+
+Every backup is an `rclone sync` with `--backup-dir`: the destination mirrors the folder, and nothing is ever deleted without being archived first. What stays home is data, not code: a shared `filter.txt` and each folder's own ticks. rclone's JSON log is read line by line into live progress and into a cause and a fix for every failure. Accounts are signed in through the browser without `rclone config`, and automatic backups are a Windows Task Scheduler task that runs with no window and needs no administrator.
+
+Keyboard first: arrows move, Enter opens, Esc goes back, and the tests drive the app the same way, by keys only. Architecture, conventions and open work: [CLAUDE.md](CLAUDE.md).
+
+## Roadmap
+
+| | Stage | |
+|---|---|---|
+| 1 | Backup engine: sync with a versions archive, filters, history, causes and fixes | ![done](https://img.shields.io/badge/-done-2E7D5B?style=flat-square) |
+| 2 | The interface: home menu, folders, live progress, each folder's own screen | ![done](https://img.shields.io/badge/-done-2E7D5B?style=flat-square) |
+| 3 | Choosing folders and files, importing an older setup, metrics | ![done](https://img.shields.io/badge/-done-2E7D5B?style=flat-square) |
+| 4 | Automatic backups: at sign-in or every day, no window | ![done](https://img.shields.io/badge/-done-2E7D5B?style=flat-square) |
+| 5 | A Windows notification when an unattended backup fails | ![work in progress](https://img.shields.io/badge/-work%20in%20progress-E0AF68?style=flat-square) |
+| 6 | Accounts without `rclone config`: Drive, OneDrive, Dropbox and Photos are in; Backblaze, S3 and local disks next | ![work in progress](https://img.shields.io/badge/-work%20in%20progress-E0AF68?style=flat-square) |
+| 7 | Versions browser: restore a file or a folder from `_versions/` | ![planned](https://img.shields.io/badge/-planned-5F6073?style=flat-square) |
 
 ## Requirements
 
 - Windows, Python 3.11+ and [uv](https://docs.astral.sh/uv/).
-- [rclone](https://rclone.org/downloads/) on `PATH` (`winget install Rclone.Rclone`),
-  An account can be added from Arca (Accounts), or use a local folder as destination.
-
-## Usage
+- [rclone](https://rclone.org/downloads/) on `PATH`: `winget install Rclone.Rclone`.
+- An account to back up to, added from Arca itself, or a local disk.
 
 ```powershell
 uv run arca                  # open the interface
-uv run arca run              # back up every enabled folder, no interface
-uv run arca run --dry-run    # show what would change, change nothing
+uv run arca run --dry-run    # what a backup would change, changing nothing
 ```
-
-Or install the `arca` command once: `uv tool install --editable .`
-
-Everything is in the menu. In the folders view, the keys are shortcuts:
-
-| Key | Action |
-|---|---|
-| `Esc` | back to the menu |
-| `Enter` | what can be done with the selected folder |
-| `→` or `↓` / `Space` or `Tab` | into the folder's files / tick or untick one |
-| `Ctrl+S` | save the ticks |
-| `a` / `Del` or `d` | add / delete a folder from Arca (asks first; its files stay) |
-| `r` / `R` | back up the selected folder / all of them |
-| `n` | dry run |
-| `s` | stop |
-| `m` | choose the destination |
-| `f` | edit the exclude filters |
-| `x` | sign in again (expired or disconnected) |
-| `?` | every key |
-
-Settings, filters and run history live in `%APPDATA%\arca\`. Architecture and
-working notes: [CLAUDE.md](CLAUDE.md).
-
-## The original script
-
-Arca grew from a PowerShell backup script. That script is a personal setup, so it
-is not part of this repository; Import brings a script like it into Arca, and
-choosing automatic backups replaces its scheduled task.
 
 ## Credits
 
-The interface follows the design of
-[Bitácora](https://github.com/baltazarandersson/bitacora) by Baltazar Andersson.
+The interface follows the design of [Bitácora](https://github.com/baltazarandersson/bitacora) by Baltazar Andersson, with his permission.
 
 ## License
 
-[MIT](LICENSE) &copy; 2026 [Luis Barral](https://barral.dev).
+[MIT](LICENSE) &copy; 2026 [Luis Barral](https://barral.dev). Free to use, change and share.
 
 <div align="center">
 
 **[Luis Barral](https://barral.dev)** &middot; MIT
 
-<sub>co-assisted by Claude</sub>
+<a href="CLAUDE.md"><img src="assets/brand/signature.svg" height="29" alt="co-assisted by Claude Opus 5.5"></a>
 
 </div>
