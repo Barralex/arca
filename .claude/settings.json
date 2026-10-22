@@ -1,0 +1,16 @@
+{
+  "hooks": {
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "py=\"$CLAUDE_PROJECT_DIR/.venv/Scripts/python.exe\"; [ -x \"$py\" ] || py=python; \"$py\" \"$CLAUDE_PROJECT_DIR/.claude/hooks/keyboard_check.py\"",
+            "timeout": 20,
+            "statusMessage": "Keyboard-first check"
+          }
+        ]
+      }
+    ]
+  }
+}
