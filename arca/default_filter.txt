@@ -1,35 +1,35 @@
 # Arca exclude policy: what never leaves this machine.
 # A line starting with "-" excludes a path; everything else is kept.
 # Edit it from Arca with f. Reference: https://rclone.org/filtering/
-# --- OS / editor cruft ---
+#
+# Only what is junk for everyone is excluded here. A folder of your own
+# (a heavy one, a private one) is unticked on that folder's screen instead.
+
+# --- system files ---
 - desktop.ini
 - Thumbs.db
 - .DS_Store
 
-# --- dependencies and build output (regenerable, never worth uploading) ---
+# --- installed dependencies and caches (reinstalled in seconds, never worth uploading) ---
 - node_modules/**
-- vendor/**
 - .venv/**
 - venv/**
-- env/**
 - __pycache__/**
 - *.pyc
-- dist/**
-- build/**
-- out/**
 - .next/**
 - .turbo/**
 - .parcel-cache/**
-- coverage/**
-- target/**
-- bin/**
-- obj/**
 - .gradle/**
 - .terraform/**
 
-# --- logs ---
-- *.log
-
-# --- your own heavy folders go here, one per line, e.g. ---
-# - Insta360/**
-# - Screenshots/**
+# --- build output, if you write code: remove the "# " to use a line ---
+# These names are also used for ordinary folders, so they are off by default.
+# - dist/**
+# - build/**
+# - out/**
+# - bin/**
+# - obj/**
+# - target/**
+# - vendor/**
+# - coverage/**
+# - *.log
