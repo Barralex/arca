@@ -5,6 +5,7 @@ import stat
 from collections.abc import Iterable
 from pathlib import Path
 
+from rich.style import Style
 from rich.text import Text
 from textual import events, on, work
 from textual.app import ComposeResult
@@ -17,7 +18,7 @@ from textual.widgets import Button, DirectoryTree, Input, Label, OptionList, Sta
 from textual.widgets.option_list import Option
 
 from arca import fmt
-from arca.core import rclone
+from arca.core import rclone, selection
 from arca.core.config import Job, join, name_problem
 from arca.i18n import t
 
@@ -99,10 +100,25 @@ class FolderTree(DirectoryTree):
                 continue
 
 
+def _key(path: Path) -> str:
+    """A folder as selection.py keys it: "/" separators, ending in "/"."""
+    return path.as_posix().rstrip("/") + "/"
+
+
+def _above(key: str) -> list[str]:
+    parts = key.rstrip("/").split("/")
+    return ["/".join(parts[:depth]) + "/" for depth in range(1, len(parts))]
+
+
 class CheckTree(FolderTree):
     """The folder tree with a box on every line. Keyboard first: space or Tab ticks, Enter opens or closes a folder,
     → opens it (or steps into it), ← closes it (or steps out to its parent). Exploring never saves: ↓ past the last
-    line walks to the save line under the tree."""
+    line walks to the save line under the tree. The mouse does the same on the way down: a press on the box ticks,
+    a press on the name opens or closes.
+
+    A tick takes everything inside the folder with it, as in a folder's Files list (`core/selection.py`, with
+    absolute paths): unticking a folder inside a ticked one leaves it out of that backup as a rule, it never makes
+    two backups of the same files."""
 
     BINDINGS = [
         Binding("space,tab", "check", show=False),
@@ -116,27 +132,62 @@ class CheckTree(FolderTree):
 
     def __init__(self, path: Path, **kwargs) -> None:
         super().__init__(path, **kwargs)
-        self.checked: dict[Path, None] = {}  # in the order they were ticked
+        self.changes: dict[str, bool] = {}  # folder ("C:/Users/me/Docs/") -> ticked, in the order they were ticked
+
+    @property
+    def checked(self) -> list[Path]:
+        """The folders to back up, each with its own name: the ticks with no ticked folder above them."""
+        return [Path(key) for key, keep in self.changes.items() if keep and not any(
+            self.changes.get(above) for above in _above(key))]
+
+    def rules(self, folder: Path) -> list[str]:
+        """What is unticked (or ticked back) inside `folder`, as its own rclone rules: deepest first."""
+        root = _key(folder)
+        inside = {key[len(root):]: keep for key, keep in self.changes.items() if key.startswith(root) and key != root}
+        return selection.merge(inside, [])
+
+    def left_out(self, folder: Path) -> list[str]:
+        """The names unticked right inside `folder`'s backup, for the summary."""
+        root = _key(folder)
+        return [Path(key).name for key, keep in self.changes.items()
+                if not keep and key.startswith(root) and key != root]
 
     def render_label(self, node, base_style, style) -> Text:
         label = super().render_label(node, base_style, style)
         if node.data is None:
             return label
-        if Path(node.data.path) in self.checked:
+        box = Style.from_meta({"box": True})  # tells a mouse press on the box from one on the name
+        if selection.ticked(_key(Path(node.data.path)), set(), self.changes):
             label.stylize(f"bold {ACCENT}")
-            return Text.assemble(("[✓] ", f"bold {ACCENT}"), label)
-        return Text.assemble(("[ ] ", "grey50"), label)
+            return Text.assemble(("[✓] ", Style.parse(f"bold {ACCENT}") + box), label)
+        return Text.assemble(("[ ] ", Style.parse("grey50") + box), label)
+
+    def _on_mouse_down(self, event: events.MouseDown) -> None:
+        line = event.style.meta.get("line")
+        if event.button != 1 or line is None or line < 0:
+            return
+        event.stop()
+        event.prevent_default()
+        self.focus()
+        self.cursor_line = line
+        if event.style.meta.get("box"):
+            self.action_check()
+        else:
+            self.action_toggle()
+
+    async def _on_click(self, event: events.Click) -> None:
+        """The press already acted (some terminals lose the release); Tree's own click would open or close again."""
+        event.stop()
+        event.prevent_default()
 
     def action_check(self) -> None:
         node = self.cursor_node
         if node is None or node.data is None:
             return
-        path = Path(node.data.path)
-        if path in self.checked:
-            del self.checked[path]
-        else:
-            self.checked[path] = None
-        node.refresh()
+        selection.toggle(_key(Path(node.data.path)), set(), self.changes)
+        self._clear_line_cache()  # the folders inside follow the tick: every line, not just this one
+        self._updates += 1
+        self.refresh()
         self.post_message(self.Checked())
 
     def action_toggle(self) -> None:
@@ -322,12 +373,20 @@ class PickFoldersScreen(Dialog):
         self._summary()
 
     def _summary(self) -> None:
-        checked = list(self.query_one(CheckTree).checked)
+        tree = self.query_one(CheckTree)
+        checked = tree.checked
         if not checked:
             text = Text(t("pick.none"), style="grey62")
         else:
-            names = ", ".join(path.name or str(path) for path in checked)
-            text = Text.assemble((f"✓ {t('pick.some', n=len(checked))}  ", f"bold {ACCENT}"), (names, ""))
+            text = Text.assemble((f"✓ {t('pick.some', n=len(checked))}  ", f"bold {ACCENT}"))
+            for i, path in enumerate(checked):
+                # with the folder that holds it: two "Varios" in different places read apart
+                left_out = tree.left_out(path)
+                held = [path.parent.name] if path.name and path.parent.name else []
+                if left_out:
+                    held.append(t("pick.without", names=", ".join(left_out)))
+                text.append_text(Text.assemble((", " if i else "", ""), (path.name or str(path), ""),
+                                               (f" ({', '.join(held)})" if held else "", "grey50")))
             if self.remote:
                 text.append(f"\n{t('pick.dest', dest=fmt.path(join(self.remote, '…')))}", style="grey50")
         self.query_one("#picked", Static).update(text)
@@ -372,7 +431,8 @@ class PickFoldersScreen(Dialog):
             self.query_one("#error", Label).update(t("add.err.path"))
 
     def action_save(self) -> None:
-        folders = list(self.query_one(CheckTree).checked)
+        tree = self.query_one(CheckTree)
+        folders = tree.checked
         if not folders:
             return  # nothing ticked, nothing added: the cursor alone never chooses
         taken = set(self.taken)
@@ -386,7 +446,7 @@ class PickFoldersScreen(Dialog):
             while name_problem(name, taken):
                 name, n = f"{base} {n}", n + 1
             taken.add(name)
-            jobs.append(Job(name=name, source=source))
+            jobs.append(Job(name=name, source=source, rules=tree.rules(folder)))
         if not jobs:
             self.query_one("#error", Label).update(t("pick.err.none"))
             return

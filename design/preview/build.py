@@ -52,7 +52,7 @@ def demo():
         return preflight.Health(True)
 
     rclone.list_remotes, rclone.account_states, preflight.check = remotes, accounts, healthy
-    schedule.current, schedule.apply = (lambda: "daily"), (lambda mode: None)
+    schedule.current, schedule.apply = (lambda: ("daily", True)), (lambda mode, on=True: None)
 
     config.save(Config(remote="gdrive:Backups", jobs=[Job(name, str(source)) for name, source, *_ in FOLDERS]))
     now = datetime.now().replace(microsecond=0)

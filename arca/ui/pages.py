@@ -36,7 +36,7 @@ KINDS = {  # rclone backend type -> what people call it
 SERVICES = (("drive", "gdrive"), ("onedrive", "onedrive"), ("dropbox", "dropbox"), ("googlephotos", "gphotos"))
 THEMES = ("tokyo-night", "nord", "gruvbox", "dracula", "monokai", "catppuccin-mocha", "rose-pine", "solarized-dark")
 METRIC_DAYS = (7, 14, 30)
-NEEDS_ACCOUNT = ("folders", "run_all", "import", "metrics")  # home lines that lead nowhere without an account
+NEEDS_ACCOUNT = ("folders", "import", "metrics")  # home lines that lead nowhere without an account
 
 
 def row(label: str | Text, desc: str | Text = "", right: str | Text = "", label_width: int = 14) -> Table:
@@ -170,12 +170,28 @@ class DangerRow(LinkRow):
     MARK, COLOUR = "✗", "#f7768e"
 
 
+class SwitchRow(LinkRow):
+    """The automatic backups' on/off, above the delete: what Windows has, and Enter (or a click) flips it."""
+
+    def show(self, on: bool | None, mode: str, last: str | None) -> None:
+        if on is None:  # Windows has not answered yet
+            self.mark, self.COLOUR, self.label, self.desc = "○", "grey62", t("switch.title"), t("switch.checking")
+        elif on:
+            self.mark, self.COLOUR, self.label = "●", "#9ece6a", t("switch.on")
+            self.desc = t("switch.on.desc", mode=t(f"schedule.{mode}", at=schedule.DAILY_AT).lower())
+        else:
+            self.mark, self.COLOUR, self.label = "○", "#e0af68", t("switch.off")
+            self.desc = t("switch.off.desc", when=t("switch.last", when=fmt.clock(last), ago=fmt.ago(last))
+                          if last else t("sum.never"))
+        self.refresh()
+
+
 class HomeScreen(Page):
     """What Arca does, in the bordered menu; how it behaves, in the settings under it."""
 
     TITLE = "home.title"
     HINT = "hint.home"
-    ITEMS = ("folders", "run_all", "import", "accounts", "metrics", "filters")
+    ITEMS = ("folders", "import", "accounts", "metrics", "filters")
     BACK = False  # home is the top: nothing to go back to
 
     def __init__(self, focus: str | None = None) -> None:
@@ -200,6 +216,7 @@ class HomeScreen(Page):
             yield Choice(t("settings.auto"), [(mode, t(f"schedule.{mode}", at=schedule.DAILY_AT))
                                               for mode in schedule.MODES], self.arca.schedule_mode, id="set-auto")
             yield Static(id="settings-note")
+            yield SwitchRow("", "", id="switch")
             yield DangerRow(t("settings.reset"), t("settings.reset.desc"), id="reset")
 
     def on_mount(self) -> None:
@@ -210,6 +227,7 @@ class HomeScreen(Page):
         for choice in choices:
             choice.label_width, choice.value_width = label_width, value_width
         self.refresh_menu()
+        self.show_schedule()
         self.query_one(f"#{self.start_focus}" if self.start_focus else "#menu").focus()
 
     def on_screen_resume(self) -> None:
@@ -252,7 +270,7 @@ class HomeScreen(Page):
         if self.query_one("#set-lang", Choice).value != self.arca.cfg.language:
             notes.append(t("settings.lang_pending"))
         if self.query_one("#set-auto", Choice).value != self.arca.schedule_mode:
-            notes.append(t("settings.auto_pending"))
+            notes.append(t("settings.auto_pending" if self.arca.schedule_on else "settings.auto_pending_off"))
         self.query_one("#settings-note", Static).update(Text("  ".join(notes), style="#e0af68"))
 
     def show_schedule(self) -> None:
@@ -260,11 +278,16 @@ class HomeScreen(Page):
         auto = self.query_one("#set-auto", Choice)
         auto.index = schedule.MODES.index(self.arca.schedule_mode)
         auto.refresh()
+        self.query_one("#switch", SwitchRow).show(self.arca.schedule_on, self.arca.schedule_mode,
+                                                  self.arca.last_backup())
         self._note_pending()
 
     def on_link_row_chosen(self, event: LinkRow.Chosen) -> None:
         if event.row.id == "reset":
             self.arca.ask_reset()
+        elif event.row.id == "switch" and self.arca.schedule_on is not None:
+            # Turning on uses the mode in the setting above, so a changed one is applied with it.
+            self.arca.apply_schedule(str(self.query_one("#set-auto", Choice).value), not self.arca.schedule_on)
 
     def action_apply(self) -> None:
         """Enter on a setting. The theme already took effect; the automatic backups change Windows' Task Scheduler
@@ -272,7 +295,7 @@ class HomeScreen(Page):
         arrow press."""
         lang, auto = self.query_one("#set-lang", Choice), self.query_one("#set-auto", Choice)
         if self.focused is auto and auto.value != self.arca.schedule_mode:
-            self.arca.apply_schedule(str(auto.value))
+            self.arca.apply_schedule(str(auto.value), bool(self.arca.schedule_on))
         elif lang.value != self.arca.cfg.language:
             self.arca.apply_language(str(lang.value))
         elif isinstance(self.focused, Choice):

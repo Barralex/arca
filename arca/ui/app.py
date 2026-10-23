@@ -122,7 +122,8 @@ class ArcaApp(App[str]):
         self.current: JobRun | None = None
         self._runner_busy = False
         self._ctrl_c_at = -CTRL_C_WINDOW
-        self.schedule_mode = "manual"  # what Windows has registered; read on open
+        self.schedule_mode = schedule.DEFAULT_MODE  # what Windows has registered; read on open
+        self.schedule_on: bool | None = None  # None until Windows has answered
         self.signing: tuple[str, str] | None = None  # (account, link) while rclone waits for a browser sign-in
         self._sign_in_proc: rclone.Process | None = None
         for keys, action, label, show in KEYS:
@@ -715,9 +716,6 @@ class ArcaApp(App[str]):
     def open_page(self, page: str) -> None:
         if page == "folders":
             self.show_folders()
-        elif page == "run_all":
-            self.pop_screen()
-            self.action_run_all()
         elif page in PAGES:
             self.push_screen(PAGES[page]())
         elif page == "filters":
@@ -729,27 +727,34 @@ class ArcaApp(App[str]):
 
     @work(group="schedule", exclusive=True, thread=True)
     def _read_schedule(self) -> None:
-        mode = schedule.current()
-        self.call_from_thread(self._schedule_known, mode)
+        self.call_from_thread(self._schedule_known, *schedule.current())
 
-    def apply_schedule(self, mode: str) -> None:
+    def apply_schedule(self, mode: str, on: bool) -> None:
+        """Register the automatic backups as `mode`, on or off (off keeps the task, disabled)."""
         if self.current is not None or self.queue:
             self.notify(t("msg.schedule_busy"), severity="warning")
             return
-        self._apply_schedule(mode)
+        self._apply_schedule(mode, on)
 
     @work(group="schedule", exclusive=True, thread=True)
-    def _apply_schedule(self, mode: str) -> None:
-        problem = schedule.apply(mode)
-        known = schedule.current()
+    def _apply_schedule(self, mode: str, on: bool) -> None:
+        problem = schedule.apply(mode, on)
+        known, known_on = schedule.current()
         if problem:
             self.call_from_thread(self.notify, t("msg.schedule_failed", why=problem), severity="error", timeout=15)
-        else:
+        elif known_on:
             self.call_from_thread(self.notify, t("msg.scheduled", mode=t(f"schedule.{known}", at=schedule.DAILY_AT)))
-        self.call_from_thread(self._schedule_known, known)
+        else:
+            self.call_from_thread(self.notify, t("msg.schedule_off"))
+        self.call_from_thread(self._schedule_known, known, known_on)
 
-    def _schedule_known(self, mode: str) -> None:
-        self.schedule_mode = mode
+    def last_backup(self) -> str | None:
+        """When the last real backup finished well, for the switch's "last backup" while it is off."""
+        done = [r.finished for r in history.all_results() if not r.dry_run and r.status == "ok" and r.finished]
+        return max(done) if done else None
+
+    def _schedule_known(self, mode: str, on: bool) -> None:
+        self.schedule_mode, self.schedule_on = mode, on
         for screen in self.screen_stack:
             if isinstance(screen, HomeScreen) and screen.is_mounted:
                 screen.show_schedule()
@@ -808,7 +813,6 @@ class ArcaApp(App[str]):
                            style="#22b8d6")
         elif states and states.count("ok") == len(states):
             folders.append("  ✓", style="green")
-        finished = [v.result.finished for v in self.views.values() if v.result and v.result.finished]
         results = [r for r in history.all_results() if not r.dry_run and r.status != "stopped"]
         rules = sum(1 for line in self.filter_file.read_text(encoding="utf-8", errors="replace").splitlines()
                     if line.strip() and not line.lstrip().startswith(("#", ";")))
@@ -816,7 +820,6 @@ class ArcaApp(App[str]):
                                   is_local(self.cfg.remote) else "", "grey62"), self.health_text())
         return {
             "folders": folders,
-            "run_all": t("sum.last", when=fmt.ago(max(finished))) if finished else t("sum.never"),
             "import": t("home.import.found") if importer.script_paths() else "",
             "accounts": Text(t("status.no_account"), style="#e0af68") if self.no_account
             else accounts if self.cfg.remote else Text(t("err.noremote"), style="#e0af68"),

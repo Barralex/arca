@@ -116,7 +116,7 @@ arca/
     history.py   One JSON line per run.
     importer.py  An older setup -> candidate folders (backup.ps1 + remote folders).
     metrics.py   Per-folder record from the history; space via `rclone about`.
-    schedule.py  The Task Scheduler task for automatic backups (manual/logon/daily).
+    schedule.py  The Task Scheduler task for automatic backups (logon/daily, on/off).
   ui/
     app.py       The app and the folders list (table, failure note, add folders, keys).
     folder.py    FolderScreen: one folder's actions and its files, opened with Enter.
@@ -181,15 +181,20 @@ with the mouse or a letter.
   columns or 30 rows. Nothing animates.
 - **Home menu**, shown on open: one panel with Bitácora's rounded cyan border,
   one line per entry (name, what it does, a live value on the right), only for
-  what Arca *does*: Folders, Back up all, Import, Accounts, Metrics, Filters.
+  what Arca *does*: Folders, Import, Accounts, Metrics, Filters. Backing up
+  every folder at once is `R` in the folders list, not a menu line.
 - **Settings**, under the menu and outside its border, as in Bitácora: one row
   each, `◂ value ▸`, changed with ←→. Language (System, Español, English), theme,
-  **automatic backups** (Manual, When I sign in, Every day at 21:00; see §7). ↓
+  **when to back up** (When I sign in, Every day at 21:00; see §7). ↓
   past the last menu line walks into them. The theme applies and saves at once;
-  the language (it restarts the app) and the automatic backups (they change
-  Windows' Task Scheduler) wait for Enter and say so in one amber line. The
-  automatic backups show what Windows really has registered, read on open and
-  after every change. There is no "at shutdown": Windows gives a shutdown task
+  the language (it restarts the app) and when to back up (it changes
+  Windows' Task Scheduler) wait for Enter and say so in one amber line. Under
+  them, the **automatic backups switch** (`SwitchRow`, a `LinkRow`): `● on` in
+  green with when it runs, or `○ off` in amber with the last good backup
+  ("última copia 2026-10-20 18:32 (hace 2d)"); Enter or a click flips it, with no
+  confirmation (it is reversible). Both show what Windows really has registered,
+  read on open and after every change ("asking Windows…" until then). There is
+  no "at shutdown": Windows gives a shutdown task
   seconds, and a backup of gigabytes would be cut. Last, in red and apart
   from everything: **delete the configuration**, behind a yes/no that says what
   happens. It moves `config.toml` and `history.jsonl` to `previous/<stamp>/`
@@ -240,7 +245,7 @@ with the mouse or a letter.
   and a callout of its own between the header and the menu (amber rounded border,
   bold, padded, `#callout`) says "→ Connect an account to start · Enter on
   Accounts". The
-  home lines that need an account (Folders, Back up all, Import, Metrics) are
+  home lines that need an account (Folders, Import, Metrics) are
   greyed out and cannot be chosen; the cursor starts on Accounts. Filters and the
   settings stay open. Connecting one unblocks everything at once.
 - **Folders, empty.** No sentence in a blank screen: a panel like the menu with
@@ -294,7 +299,17 @@ with the mouse or a letter.
   `Versions` comes in phase 6.
 - **Adding folders** is a tree with a box on every line (`PickFoldersScreen`,
   `CheckTree`): space or Tab ticks, Enter opens or closes a folder, `→` opens it or
-  steps into it, `←` closes it or steps out. **Exploring never adds anything**: the
+  steps into it, `←` closes it or steps out. The mouse does the same, on the way
+  down (`CheckTree._on_mouse_down`; Tree's own click is swallowed so one click is
+  one action): a press on the box ticks, a press on the name opens or closes. The
+  ticked list names each folder with its parent (`Varios (Pictures)`), so two of
+  the same name read apart. A tick takes everything inside the folder, as in
+  the Files list (`selection.py` on absolute paths, `CheckTree.changes`): the
+  folders in it show `[✓]` too, and unticking one leaves it out of that backup
+  as the folder's own rule (`- /Games/**` in its `rules`), never a second backup
+  of the same files; the summary says it ("Documents (home, without Games)").
+  A tick inside a ticked folder that was left out is ticked back as a rule too.
+  **Exploring never adds anything**: the
   ticked folders are added only from **"+ Add the n ticked folders"** under the tree
   (reached with `↓` past the last line, shown once something is ticked) or with
   `Ctrl+S`; the cursor alone never chooses. Esc with ticks asks first (add them,
@@ -377,7 +392,12 @@ Everything lives in `%APPDATA%\arca\` (`ARCA_HOME` overrides it; tests use it):
   Written by the interface, editable by hand. On first
   launch `remote` defaults to the first rclone remote plus `Backups`.
 - **`filter.txt`** — the exclude policy, rclone filter syntax, copied from
-  `arca/default_filter.txt` on first use and opened with `f`. The repository's
+  `arca/default_filter.txt` on first use and opened with `f`. The template is
+  generic: it excludes only what is junk for everyone (system files, installed
+  dependencies and caches such as `node_modules`, `.venv`, `__pycache__`).
+  Names that ordinary folders also use (`build`, `dist`, `out`, `bin`, `vendor`,
+  `*.log`) ship commented out; one's own folders are unticked on the folder's
+  screen, never added to the template. The repository's
   root `filter.txt` belongs to `backup.ps1` until it is retired.
 - **`history.jsonl`** — one line per run, trimmed to the last 2000.
 - **`previous/<YYYY-MM-DD_HHMMSS>/`** — what "delete the configuration" moved
@@ -392,11 +412,13 @@ Everything lives in `%APPDATA%\arca\` (`ARCA_HOME` overrides it; tests use it):
 
 ## 7. Scheduling
 
-**Automatic backups** is a setting under the home menu, applied with Enter, and
-`core/schedule.py` turns it into one **Windows Task Scheduler** task named
-`Arca`:
+**Automatic backups** are a switch and a "when" setting under the home menu, and
+`core/schedule.py` turns them into one **Windows Task Scheduler** task named
+`Arca` (`apply(mode, on)`, read back with `current() -> (mode, on)`):
 
-- **Manual**: no task (it is deleted).
+- **Off**: the task stays, disabled (`<Enabled>false</Enabled>` in its
+  settings), so turning it on finds the same "when". No task at all is off too,
+  with "Every day at 21:00" as the default.
 - **When I sign in**: a logon trigger for this user, 2 minutes later so the
   network is up.
 - **Every day at 21:00**: a daily trigger with "run as soon as possible after a
@@ -407,7 +429,8 @@ which needs no administrator rights; `/SC ONLOGON` would. It runs this same
 Python's `pythonw.exe -m arca run --headless`: no console window, nothing
 printed, the history records the result and the interface shows it next time.
 It only starts with the network up, never twice at once, and on battery too.
-Applying a mode also removes the old script's task (`rclone-backup-windows`) if it
+Applying a mode also removes the old script's task (`rclone backup`, or the older
+`rclone-backup-windows`) if it
 is there, so the folders are never backed up twice. Tests replace
 `schedule.current` and `schedule.apply` (`tests/conftest.py`): no test touches
 the machine's Task Scheduler.
@@ -470,8 +493,11 @@ the machine's Task Scheduler.
 `docs`. For example `feat(ui): live progress in jobs table`,
 `fix(script): show rclone cause on failure`.
 
-- **Subject line only, never a body.** One line, 10 words, 15 at the limit. If it
-  will not fit, split the commit; detail that needs recording belongs in this file.
+- **Subject line only, never a body.** One line, 10 words, 15 at the limit; detail
+  that needs recording belongs in this file.
+- **Few commits.** A piece of work is one commit, three at most, and split only
+  when the parts are worth reading apart. Never split a change hunk by hunk to fit
+  a subject line: write a broader subject instead.
 - **No co-author trailers.** The history stays in one name.
 
 ---

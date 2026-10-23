@@ -232,17 +232,40 @@ async def test_settings_sit_under_the_menu_and_change_with_the_arrows():
 
 
 async def test_automatic_backups_are_scheduled_on_enter(task_scheduler):
+    task_scheduler.update(mode="daily", on=True)
     app = ArcaApp(Config(remote="D:\\Backups"))
     async with app.run_test(size=(120, 40)) as pilot:
-        await pilot.pause()
-        app.screen.query_one("#set-auto", Choice).focus()
-        await pilot.press("right")  # Manual -> When I sign in: nothing happens to Windows yet
-        assert task_scheduler["mode"] == "manual"
-        assert "Enter schedules it" in str(app.screen.query_one("#settings-note").render())
-        await pilot.press("right", "enter")  # Every day at 21:00
         await pilot.pause(0.3)
-        assert task_scheduler["mode"] == "daily" and app.schedule_mode == "daily"
+        await pilot.press(*["down"] * 7)  # down the menu and the settings, to "when to back up"
+        assert app.screen.focused.id == "set-auto"
+        await pilot.press("left")  # Every day -> When I sign in: nothing happens to Windows yet
+        assert task_scheduler["mode"] == "daily"
+        assert "Enter schedules it" in str(app.screen.query_one("#settings-note").render())
+        await pilot.press("enter")
+        await pilot.pause(0.3)
+        assert task_scheduler == {"mode": "logon", "on": True} and app.schedule_mode == "logon"
         assert str(app.screen.query_one("#settings-note").render()).strip() == ""
+
+
+async def test_the_switch_turns_automatic_backups_on_and_off_and_says_the_last_backup(task_scheduler):
+    history.append(Result(job="Docs", started="2026-10-20T18:00:00-03:00", finished="2026-10-20T18:32:00-03:00",
+                          status="ok"))
+    app = ArcaApp(Config(remote="D:\\Backups", jobs=[Job("Docs", "C:\\Docs")]))
+    async with app.run_test(size=(120, 40)) as pilot:
+        await pilot.pause(0.3)
+        switch = app.screen.query_one("#switch")
+        assert "Automatic backups off" in str(switch.render())
+        assert "last backup 2026-10-20 18:32" in str(switch.render())
+        await pilot.press(*["down"] * 8)  # down the menu and the settings, to the switch
+        assert app.screen.focused is switch and task_scheduler["on"] is False  # reaching it changes nothing
+        await pilot.press("enter")  # Enter turns it on
+        await pilot.pause(0.3)
+        assert task_scheduler == {"mode": "daily", "on": True}
+        assert "Automatic backups on" in str(switch.render()) and "every day at 21:00" in str(switch.render())
+        await pilot.press("enter")  # and off again: the task stays, disabled, with its mode
+        await pilot.pause(0.3)
+        assert task_scheduler == {"mode": "daily", "on": False}
+        assert "Automatic backups off" in str(switch.render())
 
 
 async def test_the_metrics_change_their_days_with_the_arrows():
@@ -469,7 +492,7 @@ async def test_without_a_connected_account_only_accounts_opens(monkeypatch):
         await pilot.pause(0.3)
         menu = app.screen.query_one("#menu")
         assert app.no_account and menu.get_option("accounts").id == "accounts"
-        assert [menu.get_option(item).disabled for item in ("folders", "run_all", "import", "metrics")] == [True] * 4
+        assert [menu.get_option(item).disabled for item in ("folders", "import", "metrics")] == [True] * 3
         assert menu.highlighted == HomeScreen.ITEMS.index("accounts")  # the one thing to do, under the cursor
         status = str(app.screen.query_one(".status").render())
         assert "gdrive" not in status  # no account named when none is connected

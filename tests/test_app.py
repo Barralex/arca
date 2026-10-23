@@ -116,6 +116,7 @@ async def test_enter_explores_and_never_adds_a_folder(tmp_path):
         assert isinstance(app.screen, PickFoldersScreen) and config.load().jobs == []
         await pilot.press("down", "down", "tab")  # Games, Taxes: Taxes ticked
         assert [path.name for path in tree.checked] == ["Taxes"]
+        assert "Taxes (Documents)" in str(app.screen.query_one("#picked").render())
         assert app.screen.query_one("#pick-save").display
         await pilot.press("enter")  # Enter on a ticked folder still only explores
         assert isinstance(app.screen, PickFoldersScreen)
@@ -126,6 +127,51 @@ async def test_enter_explores_and_never_adds_a_folder(tmp_path):
         await pilot.pause()
         assert app.screen is app.main
     assert [job.name for job in config.load().jobs] == ["Taxes"]
+
+
+async def test_a_ticked_folder_takes_its_folders_and_unticking_one_leaves_it_out(tmp_path):
+    """Keys only. Tab on Documents ticks everything in it; Tab on Games inside unticks just that one, as a rule of
+    the Documents backup, never as a second backup of the same files."""
+    (tmp_path / "home" / "Documents" / "Taxes").mkdir(parents=True)
+    (tmp_path / "home" / "Documents" / "Games").mkdir()
+    app = ArcaApp(Config(remote=str(tmp_path / "dest")), home=False)
+    async with app.run_test(size=(120, 50)) as pilot:
+        await pilot.press("a")
+        tree = app.screen.query_one(CheckTree)
+        await go_to(pilot, tmp_path / "home")
+        await pilot.press("down", "tab", "right")  # tick Documents, then open it
+        await pilot.pause(0.5)
+        await pilot.press("down")  # Games
+        assert tree.cursor_node.data.path.name == "Games"
+        assert "[✓]" in tree.render_label(tree.cursor_node, Style(), Style()).plain  # inside a tick: ticked too
+        await pilot.press("tab")  # leave Games out
+        assert "[ ]" in tree.render_label(tree.cursor_node, Style(), Style()).plain
+        assert [path.name for path in tree.checked] == ["Documents"]
+        assert "Documents (home, without Games)" in str(app.screen.query_one("#picked").render())
+        await pilot.press("ctrl+s")
+        await pilot.pause()
+        assert app.screen is app.main
+    assert [(job.name, job.rules) for job in config.load().jobs] == [("Documents", ["- /Games/**"])]
+
+
+async def test_a_click_on_the_box_ticks_and_on_the_name_opens(tmp_path):
+    """The mouse does what the keys do: the box ticks (space/Tab), the name opens and closes (Enter), and one click
+    is one action, never an open and a close."""
+    (tmp_path / "home" / "Documents" / "Taxes").mkdir(parents=True)
+    app = ArcaApp(Config(remote=str(tmp_path / "dest")), home=False)
+    async with app.run_test(size=(120, 50)) as pilot:
+        await pilot.press("a")
+        tree = app.screen.query_one(CheckTree)
+        await go_to(pilot, tmp_path / "home")
+        await pilot.click(CheckTree, offset=(12, 1))  # "Documents", after the guides and the box
+        await pilot.pause(0.5)
+        assert tree.cursor_node.data.path.name == "Documents" and tree.cursor_node.is_expanded
+        assert not tree.checked
+        await pilot.click(CheckTree, offset=(5, 1))  # its "[ ]"
+        assert [path.name for path in tree.checked] == ["Documents"]
+        assert tree.cursor_node.is_expanded  # ticking does not close it
+        assert "Documents (home)" in str(app.screen.query_one("#picked").render())  # which one, by its parent
+        assert isinstance(app.screen, PickFoldersScreen) and config.load().jobs == []  # nor add it
 
 
 async def test_the_arrows_open_and_close_folders(tmp_path):

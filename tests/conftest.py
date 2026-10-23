@@ -18,12 +18,12 @@ def arca_home(tmp_path, monkeypatch):
 @pytest.fixture(autouse=True)
 def task_scheduler(monkeypatch):
     """No test ever touches this machine's Task Scheduler: a stand-in remembers the mode instead."""
-    registered = {"mode": "manual"}
+    registered = {"mode": schedule.DEFAULT_MODE, "on": False}
 
-    def apply(mode):
-        registered["mode"] = mode
+    def apply(mode, on=True):
+        registered.update(mode=mode, on=on)
 
-    monkeypatch.setattr(schedule, "current", lambda: registered["mode"])
+    monkeypatch.setattr(schedule, "current", lambda: (registered["mode"], registered["on"]))
     monkeypatch.setattr(schedule, "apply", apply)
     return registered
 

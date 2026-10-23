@@ -206,6 +206,8 @@ def test_the_task_runs_arca_windowless_for_this_user(monkeypatch):
     monkeypatch.setenv("USERDOMAIN", "PC")
     monkeypatch.setattr(schedule.getpass, "getuser", lambda: "me")
     daily = schedule.task_xml("daily", today=date(2026, 10, 22))
+    assert "<Enabled>true</Enabled>\n  </Settings>" in daily
+    assert "<Enabled>false</Enabled>\n  </Settings>" in schedule.task_xml("daily", on=False)  # off keeps the task
     assert "<StartBoundary>2026-10-22T21:00:00</StartBoundary>" in daily
     assert "<StartWhenAvailable>true</StartWhenAvailable>" in daily  # a day the PC was off runs when it is on
     assert "<Arguments>-m arca run --headless</Arguments>" in daily
