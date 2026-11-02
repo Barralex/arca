@@ -95,8 +95,9 @@ def current() -> tuple[str, bool]:
 
 
 def apply(mode: str, on: bool = True) -> str | None:
-    """Register the task for `mode`, enabled or not. Returns Windows' own words when it refused, else None. The old
-    script's task goes too, so the same folders are never backed up twice."""
+    """Register the task for `mode`, enabled or not. Returns Windows' own words when it refused, else None. Once
+    Arca's task is on, the old script's task goes, so the same folders are never backed up twice; while it is off the
+    old one stays, or nothing at all would back up."""
     if mode not in MODES:
         raise ValueError(mode)
     with tempfile.TemporaryDirectory() as folder:
@@ -104,7 +105,7 @@ def apply(mode: str, on: bool = True) -> str | None:
         file.write_text(task_xml(mode, on), encoding="utf-16")  # schtasks reads task XML as UTF-16
         code, out = _schtasks("/Create", "/TN", TASK, "/XML", str(file), "/F")
     problem = out if code != 0 else None
-    for old in OLD_TASKS if problem is None else ():
+    for old in OLD_TASKS if problem is None and on else ():
         if _schtasks("/Query", "/TN", old)[0] == 0:
             _schtasks("/Delete", "/TN", old, "/F")
     return problem

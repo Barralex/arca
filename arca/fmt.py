@@ -58,6 +58,15 @@ def ago(iso: str, now: datetime | None = None) -> str:
     return t("ago", t=span)
 
 
+def days_since(iso: str, now: datetime | None = None) -> int:
+    """Whole days since an ISO moment; 0 for one that cannot be read."""
+    try:
+        then = datetime.fromisoformat(iso)
+    except ValueError:
+        return 0
+    return ((now or datetime.now(then.tzinfo)) - then).days
+
+
 def clock(iso: str) -> str:
     """2026-10-21T21:00:05-03:00 -> 2026-10-21 21:00"""
     return iso[:16].replace("T", " ") if len(iso) >= 16 else iso

@@ -5,6 +5,8 @@ import pytest
 from arca.core import rclone, schedule
 from arca.i18n import set_language
 
+REAL_APPLY = schedule.apply  # the real one, for the test that drives it with schtasks itself replaced
+
 
 @pytest.fixture(autouse=True)
 def arca_home(tmp_path, monkeypatch):
@@ -36,3 +38,16 @@ def every_file(monkeypatch):
         return {p.relative_to(root).as_posix(): p.stat().st_size for p in root.rglob("*") if p.is_file()}
 
     monkeypatch.setattr(rclone, "listing", listing)
+
+
+@pytest.fixture
+def schtasks(monkeypatch):
+    """The real `schedule.apply` with `schtasks` replaced: every call is recorded, the old script's task exists."""
+    calls = []
+
+    def fake(*args):
+        calls.append(args)
+        return 0, ""
+
+    monkeypatch.setattr(schedule, "_schtasks", fake)
+    return REAL_APPLY, calls

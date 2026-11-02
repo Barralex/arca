@@ -1,3 +1,4 @@
+import shutil
 from datetime import date
 
 import pytest
@@ -266,6 +267,83 @@ async def test_the_switch_turns_automatic_backups_on_and_off_and_says_the_last_b
         await pilot.pause(0.3)
         assert task_scheduler == {"mode": "daily", "on": False}
         assert "Automatic backups off" in str(switch.render())
+
+
+async def test_folders_left_unprotected_are_said_on_the_menu_until_the_switch_is_on(task_scheduler):
+    # Nothing runs, so nothing fails: only this says the folders are not being backed up.
+    app = ArcaApp(Config(remote="D:\\Backups", jobs=[Job("Docs", "C:\\Docs"), Job("Pics", "C:\\Pics")]))
+    async with app.run_test(size=(120, 40)) as pilot:
+        await pilot.pause(0.3)
+        callout = app.screen.query_one("#callout")
+        assert callout.display
+        assert "No folder backed up yet · automatic backups off" in str(callout.render())
+        assert "Enter on Automatic backups" in str(callout.render())
+        assert "automatic backups off" not in str(app.screen.query_one(".status").render())  # said once, not twice
+        assert "automatic backups off" in str(app.main.query_one(".status").render())  # the folders list says it
+        await pilot.press(*["down"] * 8)  # walking down to the switch changes nothing
+        assert task_scheduler["on"] is False and "automatic backups off" in str(callout.render())
+        await pilot.press("enter")  # Enter on the switch turns them on
+        await pilot.pause(0.3)
+        assert task_scheduler["on"] is True
+        assert "automatic backups off" not in str(callout.render())
+        assert "R in Folders backs up now" in str(callout.render())  # still nothing copied
+
+
+@pytest.mark.skipif(shutil.which("rclone") is None, reason="needs rclone on PATH")
+async def test_a_backup_clears_the_never_backed_up_line(tmp_path, task_scheduler):
+    task_scheduler.update(on=True)
+    jobs = []
+    for name in ("Docs", "Pics"):
+        (tmp_path / name).mkdir()
+        (tmp_path / name / "a.txt").write_text(name, encoding="utf-8")
+        jobs.append(Job(name, str(tmp_path / name)))
+    app = ArcaApp(Config(remote=str(tmp_path / "dest"), jobs=jobs), home=False)
+    async with app.run_test(size=(120, 40)) as pilot:
+        await pilot.pause(0.3)
+        status = app.main.query_one(".status")
+        assert "No folder backed up yet · R in Folders backs up now" in str(status.render())
+        await pilot.press("r")  # the first folder only
+        for _ in range(100):
+            await pilot.pause(0.1)
+            if app.views["Docs"].result is not None:
+                break
+        assert "1 of 2 folders never backed up" in str(status.render())
+        await pilot.press("R")  # every folder
+        for _ in range(100):
+            await pilot.pause(0.1)
+            if app.views["Pics"].result is not None and app.current is None:
+                break
+        assert "never backed up" not in str(status.render()) and "backs up now" not in str(status.render())
+
+
+async def test_an_overdue_folder_is_said_and_a_failed_one_is_left_to_its_row(task_scheduler):
+    from datetime import datetime, timedelta
+
+    task_scheduler.update(on=True)
+    now = datetime.now().astimezone()
+    for job, when, status in (("Docs", now - timedelta(days=5), "ok"), ("Pics", now, "failed")):
+        stamp = when.isoformat(timespec="seconds")
+        history.append(Result(job=job, started=stamp, finished=stamp, status=status))
+    app = ArcaApp(Config(remote="D:\\Backups", jobs=[Job("Docs", "C:\\Docs"), Job("Pics", "C:\\Pics")]))
+    async with app.run_test(size=(120, 40)) as pilot:
+        await pilot.pause(0.3)
+        callout = str(app.screen.query_one("#callout").render())
+        assert "Last backup 5d ago" in callout and "R in Folders backs up now" in callout
+        assert "never" not in callout  # Pics failed: a run, its row says why
+
+
+async def test_a_recent_backup_with_automatic_backups_on_needs_no_warning(task_scheduler):
+    from datetime import datetime
+
+    task_scheduler.update(on=True)
+    now = datetime.now().astimezone().isoformat(timespec="seconds")
+    history.append(Result(job="Docs", started=now, finished=now, status="ok"))
+    history.append(Result(job="Pics", started=now, finished=now, status="failed"))  # its row says it, red
+    app = ArcaApp(Config(remote="D:\\Backups", jobs=[Job("Docs", "C:\\Docs"), Job("Pics", "C:\\Pics")]))
+    async with app.run_test(size=(120, 40)) as pilot:
+        await pilot.pause(0.3)
+        assert not app.screen.query_one("#callout").display
+        assert "backs up now" not in str(app.main.query_one(".status").render())
 
 
 async def test_the_metrics_change_their_days_with_the_arrows():

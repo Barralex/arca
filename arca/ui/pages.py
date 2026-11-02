@@ -250,10 +250,16 @@ class HomeScreen(Page):
         )
         menu.highlighted = self.ITEMS.index("accounts") if self.ITEMS[keep] in blocked else keep
         callout = self.query_one("#callout", Static)
-        callout.display = bool(blocked)
-        callout.update(Text.assemble(("→ ", "bold #e0af68"), (t("callout.connect"), "bold #e0af68"), ("     ", ""),
-                                     ("Enter", f"bold {ACCENT}"), (f" {t('callout.on')} ", "grey62"),
-                                     (t("home.accounts"), f"bold {ACCENT}")))
+        warning = None if blocked else self.arca.protection()  # no account comes first: nothing backs up without one
+        callout.display = bool(blocked or warning)
+        if blocked:
+            callout.update(Text.assemble(("→ ", "bold #e0af68"), (t("callout.connect"), "bold #e0af68"),
+                                         ("     ", ""), ("Enter", f"bold {ACCENT}"),
+                                         (f" {t('callout.on')} ", "grey62"), (t("home.accounts"), f"bold {ACCENT}")))
+        elif warning:
+            problem, key, fix = warning
+            callout.update(Text.assemble(("→ ", "bold #e0af68"), (problem, "bold #e0af68"), ("     ", ""),
+                                         (key, f"bold {ACCENT}"), (f" {fix}", "grey62")))
 
     @on(OptionList.OptionSelected, "#menu")
     def _open(self, event: OptionList.OptionSelected) -> None:

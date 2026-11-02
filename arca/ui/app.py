@@ -76,6 +76,7 @@ SOURCE_WIDTH = 34
 CTRL_C_WINDOW = 2.0  # seconds within which a second ctrl+c quits
 SIGN_IN_TIMEOUT = 300.0  # seconds rclone waits for the browser sign-in before giving up
 HINTS = ("reconnect", "remote", "retry")  # diagnosis actions with a one-key hint in the header
+OVERDUE_DAYS = 3  # a folder whose last good backup is older than this is overdue, whatever the schedule says
 
 
 @dataclass
@@ -334,12 +335,45 @@ class ArcaApp(App[str]):
         elif not health.ok and health.diagnosis:
             hint = f" · {t('hint.' + health.diagnosis.action)}" if health.diagnosis.action in HINTS else ""
             line.append(f"\n{self._say(health.diagnosis.cause)}{hint}", style="#e0af68")
-        self._show_status(line)
+        warning = self.protection()
+        if warning:  # the home menu says it in its own callout instead, louder
+            problem, key, fix = warning
+            self._show_status(line.copy().append(f"\n{problem} · {key} {fix}", style="#e0af68"), home=line)
+        else:
+            self._show_status(line)
 
-    def _show_status(self, line: Text) -> None:
+    def protection(self) -> tuple[str, str, str] | None:
+        """What leaves the folders unprotected, as (problem, key, fix): a folder never backed up or overdue, the
+        automatic backups off. None when every folder is covered, when there is nothing to protect yet, or while
+        Windows has not said whether the task is on. Nothing else would say it: with no run there is no failure.
+        A run that failed counts as a run here, since its row already says the cause and the fix."""
+        jobs = [job for job in self.cfg.jobs if job.enabled]
+        if not jobs or self.schedule_on is None or self.no_account:
+            return None
+        ran: dict[str, str] = {}
+        for result in history.all_results():
+            if not result.dry_run and result.status != "stopped" and result.finished:
+                ran[result.job] = max(ran.get(result.job, ""), result.finished)
+        never = [job for job in jobs if job.name not in ran]
+        oldest = min((ran[job.name] for job in jobs if job.name in ran), default=None)
+        parts = []
+        if never:
+            parts.append(t("warn.none") if len(never) == len(jobs) else
+                         t("warn.never", n=len(never), total=len(jobs)))
+        elif oldest and fmt.days_since(oldest) >= OVERDUE_DAYS:
+            parts.append(t("warn.overdue", ago=fmt.ago(oldest)))
+        if not self.schedule_on:
+            parts.append(t("warn.off"))
+        if not parts:
+            return None
+        problem = " · ".join(parts)
+        key, fix = ("Enter", t("warn.fix_off")) if not self.schedule_on else ("R", t("warn.fix_run"))
+        return problem[0].upper() + problem[1:], key, fix
+
+    def _show_status(self, line: Text, home: Text | None = None) -> None:
         for screen in self.screen_stack:
             for widget in screen.query(".status"):
-                widget.update(line)
+                widget.update(home if home is not None and isinstance(screen, HomeScreen) else line)
         self._refresh_home()
         for screen in self._accounts():  # the destination's line says what the check found, not "checking…"
             if screen.is_mounted and screen.remotes:
@@ -464,6 +498,7 @@ class ArcaApp(App[str]):
             view.result, view.trial = result, None
         history.append(result)
         self._refresh_folder(job)
+        self.render_status()  # a good backup can clear the "never backed up" line
         if result.status == "ok":
             self.notify(t("msg.done_dry" if result.dry_run else "msg.done", name=job.name, n=result.transfers,
                           size=fmt.size(result.bytes)))
@@ -755,6 +790,7 @@ class ArcaApp(App[str]):
 
     def _schedule_known(self, mode: str, on: bool) -> None:
         self.schedule_mode, self.schedule_on = mode, on
+        self.render_status()  # the "automatic backups off" line comes and goes with it
         for screen in self.screen_stack:
             if isinstance(screen, HomeScreen) and screen.is_mounted:
                 screen.show_schedule()

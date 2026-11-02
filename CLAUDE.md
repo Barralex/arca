@@ -248,6 +248,17 @@ with the mouse or a letter.
   home lines that need an account (Folders, Import, Metrics) are
   greyed out and cannot be chosen; the cursor starts on Accounts. Filters and the
   settings stay open. Connecting one unblocks everything at once.
+- **Folders left unprotected** (`App.protection()`): when nothing runs, nothing
+  fails, so this is the only thing that says it. An enabled folder with no real
+  run at all, the oldest folder's last run more than 3 days ago
+  (`OVERDUE_DAYS`), or the automatic backups off, gives one amber line with its
+  fix: "No folder backed up yet · automatic backups off · Enter on Automatic
+  backups, under the menu", or "… · R in Folders backs up now" while they are on.
+  The home menu shows it in the same `#callout` (when an account is connected),
+  and the other screens as a header line, so it is said once per screen. A failed
+  run counts as a run: its row already says the cause and the fix. Dry runs and
+  stopped runs do not count. Nothing is shown until Windows has said whether the
+  task is on.
 - **Folders, empty.** No sentence in a blank screen: a panel like the menu with
   the next steps (add a folder, import, back to the menu). Footer keys that need a
   folder (`r R n d space`) or a run (`s`) are hidden until they can act
@@ -429,11 +440,13 @@ which needs no administrator rights; `/SC ONLOGON` would. It runs this same
 Python's `pythonw.exe -m arca run --headless`: no console window, nothing
 printed, the history records the result and the interface shows it next time.
 It only starts with the network up, never twice at once, and on battery too.
-Applying a mode also removes the old script's task (`rclone backup`, or the older
-`rclone-backup-windows`) if it
-is there, so the folders are never backed up twice. Tests replace
+Registering the task **on** also removes the old script's task (`rclone backup`,
+or the older `rclone-backup-windows`) if it is there, so the folders are never
+backed up twice. Registered off, the old task stays: removing it then left
+nothing backing up at all, silently (2026-10-30 to 2026-11-01 on this machine). Tests replace
 `schedule.current` and `schedule.apply` (`tests/conftest.py`): no test touches
-the machine's Task Scheduler.
+the machine's Task Scheduler. The `schtasks` fixture drives the real `apply`
+with `schtasks` itself replaced.
 
 ---
 

@@ -213,3 +213,11 @@ def test_the_task_runs_arca_windowless_for_this_user(monkeypatch):
     assert "<Arguments>-m arca run --headless</Arguments>" in daily
     logon = schedule.task_xml("logon")
     assert "<LogonTrigger><Enabled>true</Enabled><UserId>PC\\me</UserId>" in logon  # this user: no admin rights
+
+
+def test_the_old_scripts_task_goes_only_once_arcas_is_on(schtasks):
+    apply, calls = schtasks
+    apply("logon", on=False)  # Arca's off: the old task is all that still backs up, it stays
+    assert not any(call[0] == "/Delete" for call in calls)
+    apply("daily", on=True)
+    assert ("/Delete", "/TN", "rclone backup", "/F") in calls
